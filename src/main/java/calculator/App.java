@@ -19,6 +19,7 @@ import java.io.*;
 import java.nio.file.Files;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Scanner;
 import java.util.UUID;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -147,6 +148,7 @@ public class App implements RequestHandler<APIGatewayProxyRequestEvent, APIGatew
 
     private void ensureDotStaticExists() {
         // using static dot binary via https://lifeinplaintextblog.wordpress.com/deploying-graphviz-on-aws-lambda/
+        // with this addendum: https://github.com/restruct/dot-static#additional-notescredits
         try {
             File file = new File(dotStaticPath);
             if(!file.exists()) {
@@ -161,7 +163,7 @@ public class App implements RequestHandler<APIGatewayProxyRequestEvent, APIGatew
                 outputStream.close();
             }
             file = new File(dotStaticPath);
-            file.setExecutable(true, true);
+            file.setExecutable(true);
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
@@ -171,6 +173,7 @@ public class App implements RequestHandler<APIGatewayProxyRequestEvent, APIGatew
         ensureDotStaticExists();
         try {
             Process process = Runtime.getRuntime().exec(dotStaticPath + " -Txdot");
+            inheritIO(process.getErrorStream(), System.err);
             BufferedReader input = new BufferedReader(new InputStreamReader(process.getInputStream()));
             BufferedWriter output = new BufferedWriter(new OutputStreamWriter(process.getOutputStream()));
             output.write(graph);
@@ -191,5 +194,16 @@ public class App implements RequestHandler<APIGatewayProxyRequestEvent, APIGatew
         } catch (InterruptedException e) {
             throw new RuntimeException(e);
         }
+    }
+
+    private static void inheritIO(final InputStream src, final PrintStream dest) {
+        new Thread(new Runnable() {
+            public void run() {
+                Scanner sc = new Scanner(src);
+                while (sc.hasNextLine()) {
+                    dest.println(sc.nextLine());
+                }
+            }
+        }).start();
     }
 }
