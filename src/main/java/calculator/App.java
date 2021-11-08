@@ -47,9 +47,13 @@ public class App implements RequestHandler<APIGatewayProxyRequestEvent, APIGatew
     private final Map<String, RelatednessResult> cache = new MapMaker()
             .maximumSize(1000)
             .makeComputingMap(
-                    new Function<>() {
+                    new Function<String, RelatednessResult>() {
                         public RelatednessResult apply(String q) {
-                            return generateResultWithoutCaching(q);
+                            long start = System.currentTimeMillis();
+                            RelatednessResult result = generateResultWithoutCaching(q);
+                            long time = System.currentTimeMillis() - start;
+                            System.out.println("Took " + time + "ms to run generateResultWithoutCaching");
+                            return result;
                         }
                     });
 
@@ -82,7 +86,10 @@ public class App implements RequestHandler<APIGatewayProxyRequestEvent, APIGatew
     RelatednessResult generateResultWithoutCaching(String query) {
         RelationParseResult relationParseResult;
         try {
+            long start = System.currentTimeMillis();
             relationParseResult = RelativeNameParser.parse(query, true);
+            long time = System.currentTimeMillis() - start;
+            System.out.println("Took " + time + "ms to run RelativeNameParser.parse()");
         } catch (UnknownRelationException e) { // relation exception
             RelatednessResult result = new RelatednessResult();
             result.setFailed(true);
@@ -115,7 +122,10 @@ public class App implements RequestHandler<APIGatewayProxyRequestEvent, APIGatew
         double graphWidth = Double.parseDouble(matcher.group(1));
 
         // calculate the Relatedness from the Relation
+        long start = System.currentTimeMillis();
         Relatedness relatedness = RelatednessCalculator.calculate(relationParseResult.getRelation());
+        long time = System.currentTimeMillis() - start;
+        System.out.println("Took " + time + "ms to run RelatednessCalculator.calculate()");
 
         RelatednessResult result = new RelatednessResult();
         result.setGraph(graph);
@@ -126,11 +136,16 @@ public class App implements RequestHandler<APIGatewayProxyRequestEvent, APIGatew
     }
 
     private String convertToXdot(String graph) {
+        String res;
+        long start = System.currentTimeMillis();
         if (xdotService == null || xdotService.isEmpty()) {
-            return convertToXdotUnitTest(graph);
+            res = convertToXdotUnitTest(graph);
         } else {
-            return convertToXdotLambda(graph);
+            res = convertToXdotLambda(graph);
         }
+        long time = System.currentTimeMillis() - start;
+        System.out.println("Took " + time + "ms to run convertToXdot()");
+        return res;
     }
 
     private String convertToXdotLambda(String graph) {
