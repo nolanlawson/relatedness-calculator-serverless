@@ -1,11 +1,5 @@
 package calculator;
 
-import java.nio.charset.StandardCharsets;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-
 import com.amazonaws.regions.Regions;
 import com.amazonaws.services.lambda.AWSLambda;
 import com.amazonaws.services.lambda.AWSLambdaAsyncClient;
@@ -16,19 +10,23 @@ import com.amazonaws.services.lambda.runtime.Context;
 import com.amazonaws.services.lambda.runtime.RequestHandler;
 import com.amazonaws.services.lambda.runtime.events.APIGatewayProxyRequestEvent;
 import com.amazonaws.services.lambda.runtime.events.APIGatewayProxyResponseEvent;
-
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
-
 import com.google.common.base.Function;
 import com.google.common.collect.MapMaker;
-
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 import com.nolanlawson.relatedness.Relatedness;
+import com.nolanlawson.relatedness.RelatednessCalculator;
 import com.nolanlawson.relatedness.UnknownRelationException;
 import com.nolanlawson.relatedness.parser.ParseError;
 import com.nolanlawson.relatedness.parser.RelationParseResult;
 import com.nolanlawson.relatedness.parser.RelativeNameParser;
-import com.nolanlawson.relatedness.RelatednessCalculator;
+
+import java.io.*;
+import java.nio.charset.StandardCharsets;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * Handler for requests to Lambda function.
@@ -37,8 +35,11 @@ public class App implements RequestHandler<APIGatewayProxyRequestEvent, APIGatew
 
     private static final int MAX_LENGTH = 500;
     private static final Gson gson = new GsonBuilder().disableHtmlEscaping().create();
-
     private static final Pattern pattern = Pattern.compile("b=\"0,0,([0-9.]+),");
+    private static final String xdotService = System.getenv("xdotService");
+    private static final AWSLambda client = AWSLambdaAsyncClient.builder()
+            .withRegion(Regions.US_WEST_2)
+            .build();
 
     /**
      * Use a small LRU cache to hold the response data
@@ -91,7 +92,6 @@ public class App implements RequestHandler<APIGatewayProxyRequestEvent, APIGatew
 
         // if there is ambiguity, give the user a chance to recover
         if (relationParseResult.getParseError() == ParseError.Ambiguity) {
-            System.out.println("ambiguous!!");
             RelatednessResult result = new RelatednessResult();
             result.setFailed(true);
             result.setParseError(relationParseResult.getParseError().toString());
@@ -126,22 +126,52 @@ public class App implements RequestHandler<APIGatewayProxyRequestEvent, APIGatew
     }
 
     private String convertToXdot(String graph) {
-        AWSLambda client = AWSLambdaAsyncClient.builder()
-                .withRegion(Regions.US_WEST_2)
-                .build();
+        if (xdotService == null || xdotService.isEmpty()) {
+            return convertToXdotUnitTest(graph);
+        } else {
+            return convertToXdotLambda(graph);
+        }
+    }
 
+    private String convertToXdotLambda(String graph) {
         Map<String, String> map = new HashMap<>();
         map.put("body", graph);
         String json = gson.toJson(map);
         InvokeRequest request = new InvokeRequest()
-                .withFunctionName(System.getenv("xdotService"))
+                .withFunctionName(xdotService)
                 .withPayload(json)
                 .withInvocationType(InvocationType.RequestResponse);
         InvokeResult result = client.invoke(request);
         String resultBodyJson = new String(result.getPayload().array(), StandardCharsets.UTF_8);
         @SuppressWarnings("unchecked")
         Map<String, Object> resultParsed = gson.fromJson(resultBodyJson, Map.class);
-        String body = (String)resultParsed.get("body");
+        String body = (String) resultParsed.get("body");
         return body;
+    }
+
+    private String convertToXdotUnitTest(String graph) {
+        // unit tests
+        try {
+            Process process = Runtime.getRuntime().exec("dot -Txdot");
+            BufferedReader input = new BufferedReader( new InputStreamReader(process.getInputStream()) );
+            BufferedWriter output = new BufferedWriter( new OutputStreamWriter(process.getOutputStream()) );
+            output.write(graph);
+            output.flush();
+            output.close();
+            process.waitFor();
+            StringBuilder result = new StringBuilder();
+            while (true) {
+                String s = input.readLine();
+                if (s == null) {
+                    break;
+                }
+                result.append(s).append("\n");
+            }
+            return result.toString();
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        }
     }
 }
