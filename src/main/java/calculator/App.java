@@ -24,6 +24,7 @@ import com.google.common.base.Function;
 import com.google.common.collect.MapMaker;
 
 import com.nolanlawson.relatedness.Relatedness;
+import com.nolanlawson.relatedness.UnknownRelationException;
 import com.nolanlawson.relatedness.parser.ParseError;
 import com.nolanlawson.relatedness.parser.RelationParseResult;
 import com.nolanlawson.relatedness.parser.RelativeNameParser;
@@ -72,7 +73,7 @@ public class App implements RequestHandler<APIGatewayProxyRequestEvent, APIGatew
         } catch (Throwable t) {
             t.printStackTrace();
             return response
-                    .withBody("{\"failed\":true}")
+                    .withBody("{\"failed\":true,\"errorMessage\":\"Internal server error\"}")
                     .withStatusCode(500);
         }
     }
@@ -81,7 +82,7 @@ public class App implements RequestHandler<APIGatewayProxyRequestEvent, APIGatew
         RelationParseResult relationParseResult;
         try {
             relationParseResult = RelativeNameParser.parse(query, true);
-        } catch (Exception e) { // relation exception
+        } catch (UnknownRelationException e) { // relation exception
             RelatednessResult result = new RelatednessResult();
             result.setFailed(true);
             result.setErrorMessage(e.getMessage());
