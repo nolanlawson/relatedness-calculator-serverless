@@ -17,14 +17,13 @@ import com.amazonaws.services.lambda.runtime.RequestHandler;
 import com.amazonaws.services.lambda.runtime.events.APIGatewayProxyRequestEvent;
 import com.amazonaws.services.lambda.runtime.events.APIGatewayProxyResponseEvent;
 
-import com.nolanlawson.relatedness.Relatedness;
-import com.nolanlawson.relatedness.autosuggest.RelationSuggester;
-
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 
 import com.google.common.base.Function;
 import com.google.common.collect.MapMaker;
+
+import com.nolanlawson.relatedness.Relatedness;
 import com.nolanlawson.relatedness.parser.ParseError;
 import com.nolanlawson.relatedness.parser.RelationParseResult;
 import com.nolanlawson.relatedness.parser.RelativeNameParser;
@@ -36,7 +35,6 @@ import com.nolanlawson.relatedness.RelatednessCalculator;
 public class App implements RequestHandler<APIGatewayProxyRequestEvent, APIGatewayProxyResponseEvent> {
 
     private static final int MAX_LENGTH = 500;
-    private static final RelationSuggester relationSuggester = new RelationSuggester();
     private static final Gson gson = new GsonBuilder().disableHtmlEscaping().create();
 
     private static final Pattern pattern = Pattern.compile("b=\"0,0,([0-9.]+),");
@@ -74,7 +72,7 @@ public class App implements RequestHandler<APIGatewayProxyRequestEvent, APIGatew
         } catch (Throwable t) {
             t.printStackTrace();
             return response
-                    .withBody("{\"error\":true}")
+                    .withBody("{\"failed\":true}")
                     .withStatusCode(500);
         }
     }
