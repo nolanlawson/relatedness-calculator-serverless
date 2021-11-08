@@ -1,11 +1,5 @@
 package calculator;
 
-import com.amazonaws.regions.Regions;
-import com.amazonaws.services.lambda.AWSLambda;
-import com.amazonaws.services.lambda.AWSLambdaAsyncClient;
-import com.amazonaws.services.lambda.model.InvocationType;
-import com.amazonaws.services.lambda.model.InvokeRequest;
-import com.amazonaws.services.lambda.model.InvokeResult;
 import com.amazonaws.services.lambda.runtime.Context;
 import com.amazonaws.services.lambda.runtime.RequestHandler;
 import com.amazonaws.services.lambda.runtime.events.APIGatewayProxyRequestEvent;
@@ -22,9 +16,10 @@ import com.nolanlawson.relatedness.parser.RelationParseResult;
 import com.nolanlawson.relatedness.parser.RelativeNameParser;
 
 import java.io.*;
-import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.UUID;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -36,10 +31,17 @@ public class App implements RequestHandler<APIGatewayProxyRequestEvent, APIGatew
     private static final int MAX_LENGTH = 500;
     private static final Gson gson = new GsonBuilder().disableHtmlEscaping().create();
     private static final Pattern pattern = Pattern.compile("b=\"0,0,([0-9.]+),");
-    private static final String xdotService = System.getenv("xdotService");
-    private static final AWSLambda client = AWSLambdaAsyncClient.builder()
-            .withRegion(Regions.US_WEST_2)
-            .build();
+    private static final String dotStaticPath;
+
+    static {
+        try {
+            final String uuid = UUID.randomUUID().toString();
+            final String tmpDir = Files.createTempDirectory("relatedness-" + uuid).toFile().getAbsolutePath();
+            dotStaticPath = new File(tmpDir, "dot_static").toString();
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
 
     /**
      * Use a small LRU cache to hold the response data
@@ -136,40 +138,41 @@ public class App implements RequestHandler<APIGatewayProxyRequestEvent, APIGatew
     }
 
     private String convertToXdot(String graph) {
-        String res;
         long start = System.currentTimeMillis();
-        if (xdotService == null || xdotService.isEmpty()) {
-            res = convertToXdotUnitTest(graph);
-        } else {
-            res = convertToXdotLambda(graph);
-        }
+        String res = convertToXdotViaCommandLine(graph);
         long time = System.currentTimeMillis() - start;
         System.out.println("Took " + time + "ms to run convertToXdot()");
         return res;
     }
 
-    private String convertToXdotLambda(String graph) {
-        Map<String, String> map = new HashMap<>();
-        map.put("body", graph);
-        String json = gson.toJson(map);
-        InvokeRequest request = new InvokeRequest()
-                .withFunctionName(xdotService)
-                .withPayload(json)
-                .withInvocationType(InvocationType.RequestResponse);
-        InvokeResult result = client.invoke(request);
-        String resultBodyJson = new String(result.getPayload().array(), StandardCharsets.UTF_8);
-        @SuppressWarnings("unchecked")
-        Map<String, Object> resultParsed = gson.fromJson(resultBodyJson, Map.class);
-        String body = (String) resultParsed.get("body");
-        return body;
+    private void ensureDotStaticExists() {
+        // using static dot binary via https://lifeinplaintextblog.wordpress.com/deploying-graphviz-on-aws-lambda/
+        try {
+            File file = new File(dotStaticPath);
+            if(!file.exists()) {
+                InputStream dotStaticInputStream = App.class.getClassLoader().getResourceAsStream("dot_static");
+                OutputStream outputStream = new FileOutputStream(new File(dotStaticPath));
+                int length;
+                byte[] bytes = new byte[1024];
+                while ((length = dotStaticInputStream.read(bytes)) != -1) {
+                    outputStream.write(bytes, 0, length);
+                }
+                outputStream.flush();
+                outputStream.close();
+            }
+            file = new File(dotStaticPath);
+            file.setExecutable(true, true);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
     }
 
-    private String convertToXdotUnitTest(String graph) {
-        // unit tests
+    private String convertToXdotViaCommandLine(String graph) {
+        ensureDotStaticExists();
         try {
-            Process process = Runtime.getRuntime().exec("dot -Txdot");
-            BufferedReader input = new BufferedReader( new InputStreamReader(process.getInputStream()) );
-            BufferedWriter output = new BufferedWriter( new OutputStreamWriter(process.getOutputStream()) );
+            Process process = Runtime.getRuntime().exec(dotStaticPath + " -Txdot");
+            BufferedReader input = new BufferedReader(new InputStreamReader(process.getInputStream()));
+            BufferedWriter output = new BufferedWriter(new OutputStreamWriter(process.getOutputStream()));
             output.write(graph);
             output.flush();
             output.close();
