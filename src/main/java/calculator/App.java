@@ -61,7 +61,7 @@ public class App implements RequestHandler<APIGatewayProxyRequestEvent, APIGatew
                     });
 
     public APIGatewayProxyResponseEvent handleRequest(final APIGatewayProxyRequestEvent input, final Context context) {
-        Map<String, String> headers = new HashMap<>();
+        Map<String, String> headers = new HashMap<String, String>();
         headers.put("Content-Type", "application/json;charset=utf-8");
 
         APIGatewayProxyResponseEvent response = new APIGatewayProxyResponseEvent()
