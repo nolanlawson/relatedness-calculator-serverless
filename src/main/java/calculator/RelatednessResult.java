@@ -12,19 +12,7 @@ public class RelatednessResult {
     private double coefficient;
     private String graph;
     private double graphWidth;
-
-    @Override
-    public boolean equals(Object o) {
-        if (this == o) return true;
-        if (o == null || getClass() != o.getClass()) return false;
-        RelatednessResult that = (RelatednessResult) o;
-        return failed == that.failed && degree == that.degree && Double.compare(that.coefficient, coefficient) == 0 && Double.compare(that.graphWidth, graphWidth) == 0 && Objects.equals(parseError, that.parseError) && Objects.equals(errorMessage, that.errorMessage) && Objects.equals(alternateQueries, that.alternateQueries) && Objects.equals(graph, that.graph);
-    }
-
-    @Override
-    public int hashCode() {
-        return Objects.hash(failed, parseError, errorMessage, alternateQueries, degree, coefficient, graph, graphWidth);
-    }
+    private String cleanedQuery;
 
     public boolean isFailed() {
         return failed;
@@ -88,5 +76,26 @@ public class RelatednessResult {
 
     public void setGraphWidth(double graphWidth) {
         this.graphWidth = graphWidth;
+    }
+
+    public String getCleanedQuery() {
+        return cleanedQuery;
+    }
+
+    public void setCleanedQuery(String cleanedQuery) {
+        this.cleanedQuery = cleanedQuery;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        RelatednessResult that = (RelatednessResult) o;
+        return failed == that.failed && Double.compare(that.degree, degree) == 0 && Double.compare(that.coefficient, coefficient) == 0 && Double.compare(that.graphWidth, graphWidth) == 0 && Objects.equals(parseError, that.parseError) && Objects.equals(errorMessage, that.errorMessage) && Objects.equals(alternateQueries, that.alternateQueries) && Objects.equals(graph, that.graph) && Objects.equals(cleanedQuery, that.cleanedQuery);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(failed, parseError, errorMessage, alternateQueries, degree, coefficient, graph, graphWidth, cleanedQuery);
     }
 }

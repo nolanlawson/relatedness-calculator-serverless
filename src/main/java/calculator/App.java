@@ -72,7 +72,7 @@ public class App implements RequestHandler<APIGatewayProxyRequestEvent, APIGatew
                 throw new RuntimeException("Length too large: " + q.length());
             }
 
-            RelatednessResult result = cache.get(q.trim().toLowerCase());
+            RelatednessResult result = cache.get(q);
             String output = gson.toJson(result);
             headers.put("Cache-Control", "public, max-age=604800, s-max-age=604800");
             return response
@@ -87,6 +87,7 @@ public class App implements RequestHandler<APIGatewayProxyRequestEvent, APIGatew
     }
 
     RelatednessResult generateResultWithoutCaching(String query) {
+        query = QueryUtils.cleanQuery(query);
         RelationParseResult relationParseResult;
         try {
             long start = System.currentTimeMillis();
@@ -135,6 +136,7 @@ public class App implements RequestHandler<APIGatewayProxyRequestEvent, APIGatew
         result.setCoefficient(relatedness.getCoefficient());
         result.setDegree(relatedness.getAverageDegree());
         result.setGraphWidth(graphWidth);
+        result.setCleanedQuery(query);
         return result;
     }
 
