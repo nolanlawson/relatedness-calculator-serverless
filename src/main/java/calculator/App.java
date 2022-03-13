@@ -74,7 +74,7 @@ public class App implements RequestHandler<APIGatewayProxyRequestEvent, APIGatew
 
             RelatednessResult result = cache.get(q);
             String output = gson.toJson(result);
-            headers.put("Cache-Control", "public, max-age=604800, s-maxage=604800");
+            headers.put("Cache-Control", "public, max-age=0, s-maxage=604800");
             return response
                     .withStatusCode(200)
                     .withBody(output);
