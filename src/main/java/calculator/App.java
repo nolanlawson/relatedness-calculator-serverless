@@ -4,8 +4,6 @@ import com.amazonaws.services.lambda.runtime.Context;
 import com.amazonaws.services.lambda.runtime.RequestHandler;
 import com.amazonaws.services.lambda.runtime.events.APIGatewayProxyRequestEvent;
 import com.amazonaws.services.lambda.runtime.events.APIGatewayProxyResponseEvent;
-import com.google.common.base.Function;
-import com.google.common.collect.MapMaker;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.nolanlawson.relatedness.Relatedness;
@@ -44,22 +42,6 @@ public class App implements RequestHandler<APIGatewayProxyRequestEvent, APIGatew
         }
     }
 
-    /**
-     * Use a small LRU cache to hold the response data
-     */
-    private final Map<String, RelatednessResult> cache = new MapMaker()
-            .maximumSize(1000)
-            .makeComputingMap(
-                    new Function<String, RelatednessResult>() {
-                        public RelatednessResult apply(String q) {
-                            long start = System.currentTimeMillis();
-                            RelatednessResult result = generateResultWithoutCaching(q);
-                            long time = System.currentTimeMillis() - start;
-                            System.out.println("Took " + time + "ms to run generateResultWithoutCaching");
-                            return result;
-                        }
-                    });
-
     public APIGatewayProxyResponseEvent handleRequest(final APIGatewayProxyRequestEvent input, final Context context) {
         Map<String, String> headers = new HashMap<String, String>();
         headers.put("Content-Type", "application/json;charset=utf-8");
@@ -72,7 +54,7 @@ public class App implements RequestHandler<APIGatewayProxyRequestEvent, APIGatew
                 throw new RuntimeException("Length too large: " + q.length());
             }
 
-            RelatednessResult result = cache.get(q);
+            RelatednessResult result = generateResult(q);
             String output = gson.toJson(result);
             headers.put("Cache-Control", "public, max-age=0, s-maxage=604800");
             return response
@@ -86,7 +68,7 @@ public class App implements RequestHandler<APIGatewayProxyRequestEvent, APIGatew
         }
     }
 
-    RelatednessResult generateResultWithoutCaching(String query) {
+    private RelatednessResult generateResult(String query) {
         query = QueryUtils.cleanQuery(query);
         RelationParseResult relationParseResult;
         try {
