@@ -74,8 +74,7 @@ public class App implements RequestHandler<APIGatewayProxyRequestEvent, APIGatew
         try {
             long start = System.currentTimeMillis();
             relationParseResult = RelativeNameParser.parse(query, true);
-            long time = System.currentTimeMillis() - start;
-            System.out.println("Took " + time + "ms to run RelativeNameParser.parse()");
+            System.out.println("Took " + (System.currentTimeMillis() - start) + "ms to run RelativeNameParser.parse()");
         } catch (UnknownRelationException e) { // relation exception
             RelatednessResult result = new RelatednessResult();
             result.setFailed(true);
@@ -110,8 +109,7 @@ public class App implements RequestHandler<APIGatewayProxyRequestEvent, APIGatew
         // calculate the Relatedness from the Relation
         long start = System.currentTimeMillis();
         Relatedness relatedness = RelatednessCalculator.calculate(relationParseResult.getRelation());
-        long time = System.currentTimeMillis() - start;
-        System.out.println("Took " + time + "ms to run RelatednessCalculator.calculate()");
+        System.out.println("Took " + (System.currentTimeMillis() - start) + "ms to run RelatednessCalculator.calculate()");
 
         RelatednessResult result = new RelatednessResult();
         result.setGraph(graph);
@@ -125,12 +123,12 @@ public class App implements RequestHandler<APIGatewayProxyRequestEvent, APIGatew
     private String convertToXdot(String graph) {
         long start = System.currentTimeMillis();
         String res = convertToXdotViaCommandLine(graph);
-        long time = System.currentTimeMillis() - start;
-        System.out.println("Took " + time + "ms to run convertToXdot()");
+        System.out.println("Took " + (System.currentTimeMillis() - start) + "ms to run convertToXdot()");
         return res;
     }
 
     private void ensureDotStaticExists() {
+        long start = System.currentTimeMillis();
         // using static dot binary via https://lifeinplaintextblog.wordpress.com/deploying-graphviz-on-aws-lambda/
         // with this addendum: https://github.com/restruct/dot-static#additional-notescredits
         try {
@@ -151,6 +149,7 @@ public class App implements RequestHandler<APIGatewayProxyRequestEvent, APIGatew
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
+        System.out.println("Took " + (System.currentTimeMillis() - start) + "ms to run ensureDotStaticExists()");
     }
 
     private String convertToXdotViaCommandLine(String graph) {
