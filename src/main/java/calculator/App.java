@@ -41,6 +41,10 @@ public class App implements RequestHandler<APIGatewayProxyRequestEvent, APIGatew
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
+        // Do one throwaway parse to initialize to benefit from burst speeds during function startup
+        long start = System.currentTimeMillis();
+        RelativeNameParser.parse("grandma", true);
+        System.out.println("Took " + (System.currentTimeMillis() - start) + "ms to run RelativeNameParser.parse() (warmup)");
     }
 
     public APIGatewayProxyResponseEvent handleRequest(final APIGatewayProxyRequestEvent input, final Context context) {
