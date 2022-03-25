@@ -37,6 +37,7 @@ public class App implements RequestHandler<APIGatewayProxyRequestEvent, APIGatew
             final String uuid = UUID.randomUUID().toString();
             final String tmpDir = Files.createTempDirectory("relatedness-" + uuid).toFile().getAbsolutePath();
             dotStaticPath = new File(tmpDir, "dot_static").toString();
+            ensureDotStaticExists(); // run statically to benefit from burst speeds during function startup
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
@@ -127,33 +128,28 @@ public class App implements RequestHandler<APIGatewayProxyRequestEvent, APIGatew
         return res;
     }
 
-    private void ensureDotStaticExists() {
+    private static void ensureDotStaticExists() throws IOException {
         long start = System.currentTimeMillis();
         // using static dot binary via https://lifeinplaintextblog.wordpress.com/deploying-graphviz-on-aws-lambda/
         // with this addendum: https://github.com/restruct/dot-static#additional-notescredits
-        try {
-            File file = new File(dotStaticPath);
-            if(!file.exists()) {
-                InputStream dotStaticInputStream = App.class.getClassLoader().getResourceAsStream("dot_static");
-                OutputStream outputStream = new FileOutputStream(new File(dotStaticPath));
-                int length;
-                byte[] bytes = new byte[1024];
-                while ((length = dotStaticInputStream.read(bytes)) != -1) {
-                    outputStream.write(bytes, 0, length);
-                }
-                outputStream.flush();
-                outputStream.close();
+        File file = new File(dotStaticPath);
+        if(!file.exists()) {
+            InputStream dotStaticInputStream = App.class.getClassLoader().getResourceAsStream("dot_static");
+            OutputStream outputStream = new FileOutputStream(new File(dotStaticPath));
+            int length;
+            byte[] bytes = new byte[1024];
+            while ((length = dotStaticInputStream.read(bytes)) != -1) {
+                outputStream.write(bytes, 0, length);
             }
-            file = new File(dotStaticPath);
-            file.setExecutable(true);
-        } catch (IOException e) {
-            throw new RuntimeException(e);
+            outputStream.flush();
+            outputStream.close();
         }
+        file = new File(dotStaticPath);
+        file.setExecutable(true);
         System.out.println("Took " + (System.currentTimeMillis() - start) + "ms to run ensureDotStaticExists()");
     }
 
     private String convertToXdotViaCommandLine(String graph) {
-        ensureDotStaticExists();
         try {
             Process process = Runtime.getRuntime().exec(dotStaticPath + " -Txdot");
             inheritIO(process.getErrorStream(), System.err);
